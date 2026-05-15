@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Rekapitulasi Karyawan - PT Indexim Coalindo</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; min-height: 100vh; background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
+
+        /* JAM DIGITAL */
+        #digital-clock {
+            position: fixed; top: 15px; left: 20px; z-index: 9999;
+            background: rgba(44, 62, 80, 0.9); color: #00d2ff;
+            padding: 10px 15px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            font-family: 'Courier New', Courier, monospace; text-align: center; min-width: 140px;
+        }
+        #clock-time { font-size: 1.4rem; font-weight: bold; display: block; text-shadow: 0 0 10px rgba(0, 210, 255, 0.5); }
+        #clock-date { font-size: 0.65rem; color: #bdc3c7; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 280px; background-color: #1a252f; color: white;
+            padding: 20px; padding-top: 100px; position: fixed; height: 100%;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1); z-index: 1000;
+        }
+        .sidebar h2 { font-size: 1.1rem; margin-bottom: 30px; text-align: center; border-bottom: 2px solid #34495e; padding-bottom: 15px; color: #ecf0f1; }
+        .sidebar ul { list-style: none; }
+        .sidebar ul li { margin-bottom: 10px; }
+        .sidebar ul li a {
+            color: #bdc3c7; text-decoration: none; display: flex; align-items: center;
+            padding: 12px 15px; border-radius: 8px; font-weight: 500; transition: all 0.3s ease; font-size: 0.9rem;
+        }
+        .sidebar ul li a.active { background-color: #34495e; color: #00d2ff; }
+        .sidebar ul li a:hover { background-color: #34495e; color: #fff; padding-left: 20px; }
+        .sidebar ul li a i { margin-right: 12px; width: 20px; text-align: center; }
+
+        /* MAIN CONTENT */
+        .main-content { margin-left: 280px; padding: 40px; width: calc(100% - 280px); padding-bottom: 80px; }
+        header {
+            background: #ffffff; padding: 25px; border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08); margin-bottom: 30px;
+            text-align: center; border-left: 8px solid #2c3e50;
+        }
+        header h1 { color: #2c3e50; font-size: 1.8rem; text-transform: uppercase; letter-spacing: 2px; }
+
+        .card { background-color: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow-x: auto; }
+        .page-content { display: none; }
+        .page-content.active { display: block; }
+
+        /* TABLES */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; background: white; white-space: nowrap; }
+        table th, table td { padding: 12px 20px; text-align: left; border: 1px solid #eee; font-size: 0.85rem; }
+        table th { background-color: #f8f9fa; color: #2c3e50; font-weight: 600; }
+        
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #dcdde1; border-radius: 6px; }
+
+        /* PAGINATION */
+        .pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 10px 0; }
+        .pagination-info { font-size: 0.85rem; color: #666; }
+        .pagination-buttons { display: flex; gap: 5px; }
+        .btn-page { padding: 6px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; font-size: 0.8rem; transition: 0.3s; }
+        .btn-page:hover:not(:disabled) { background: #34495e; color: white; }
+        .btn-page:disabled { cursor: not-allowed; opacity: 0.5; }
+
+        /* BUTTONS */
+        .action-container { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; background: #f1f2f6; padding: 15px; border-radius: 10px; }
+        .btn-submit { padding: 12px 25px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-edit { background-color: #f39c12; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        .btn-delete { background-color: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-excel { background: #1f7244; color: white; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+
+        .filter-box { display: flex; align-items: center; gap: 10px; }
+        .filter-box select { width: 200px; }
+
+        /* FORM TOTAL */
+        .form-total { display: flex; gap: 15px; margin-bottom: 20px; background: #eee; padding: 15px; border-radius: 10px; align-items: flex-end; }
+        .form-total div { flex: 1; }
+        .form-total label { display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; }
+
+        /* CHART CONTAINER */
+        .chart-container { margin-top: 40px; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
+        .chart-title { font-size: 1.1rem; font-weight: bold; color: #2c3e50; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+
+        /* TULISAN BERJALAN (FOOTER) */
+        .footer-marquee {
+            position: fixed;
+            bottom: 0;
+            left: 280px; /* Sesuai lebar sidebar */
+            right: 0;
+            background: #2c3e50;
+            color: #f1c40f;
+            padding: 8px 0;
+            z-index: 1001;
+            border-top: 3px solid #00d2ff;
+        }
+        @media (max-width: 768px) {
+            .footer-marquee { left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="digital-clock">
+        <span id="clock-time">00:00:00</span>
+        <span id="clock-date">Memuat...</span>
+    </div>
+
+    <nav class="sidebar">
+        <h2>PT INDEXIM COALINDO</h2>
+        <ul>
+            <li><a href="#" onclick="switchPage('masuk')" id="nav-masuk" class="active"><i class="fa-solid fa-user-plus"></i> <span>KARYAWAN MASUK</span></a></li>
+            <li><a href="#" onclick="switchPage('keluar')" id="nav-keluar"><i class="fa-solid fa-user-minus"></i> <span>KARYAWAN KELUAR</span></a></li>
+            <li><a href="#" onclick="switchPage('total')" id="nav-total"><i class="fa-solid fa-chart-line"></i> <span>TOTAL PERBULAN</span></a></li>
+        </ul>
+    </nav>
+
+    <div class="main-content">
+        <header>
+            <h1 id="main-title">REKAPITULASI KARYAWAN MASUK</h1>
+        </header>
+
+        <main class="card">
+            <!-- PAGE MASUK -->
+            <div id="page-masuk" class="page-content active">
+                <h3>Input Karyawan Masuk</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Join Date</th>
+                            <th>Designation</th>
+                            <th>Dept</th>
+                            <th>Status</th>
+                            <th>Ket</th>
+                        </tr>
+                    </thead>
+                    <tbody><tr>
+                        <td><input type="text" id="in-code"></td>
+                        <td><input type="text" id="in-name"></td>
+                        <td><input type="date" id="in-date"></td>
+                        <td><input type="text" id="in-desig"></td>
+                        <td><select class="dept-list" id="in-dept"></select></td>
+                        <td><select class="staff-list" id="in-staff"></select></td>
+                        <td><textarea id="in-note" rows="1"></textarea></td>
+                    </tr></tbody>
+                </table>
+                <div class="action-container">
+                    <button class="btn-submit" id="btn-save-in" onclick="saveData('masuk')"><i class="fa-solid fa-save"></i> Simpan Data</button>
+                    <div class="filter-box">
+                        <label><strong>Filter Periode:</strong></label>
+                        <select id="filter-masuk" onchange="resetPage('masuk')"><option value="all">Semua Data</option></select>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="table-masuk">
+                        <thead id="thead-masuk"></thead>
+                        <tbody id="tbody-masuk"></tbody>
+                    </table>
+                </div>
+                <div class="pagination-container" id="pagination-masuk"></div>
+            </div>
+
+            <!-- PAGE KELUAR -->
+            <div id="page-keluar" class="page-content">
+                <h3>Input Karyawan Keluar</h3>
+                <table>
+                    <thead><tr><th>Code</th><th>Name</th><th>Exit Date</th><th>Designation</th><th>Dept</th><th>Status</th><th>Ket</th></tr></thead>
+                    <tbody><tr>
+                        <td><input type="text" id="out-code"></td>
+                        <td><input type="text" id="out-name"></td>
+                        <td><input type="date" id="out-date"></td>
+                        <td><input type="text" id="out-desig"></td>
+                        <td><select class="dept-list" id="out-dept"></select></td>
+                        <td><select class="staff-list" id="out-staff"></select></td>
+                        <td><textarea id="out-note" rows="1"></textarea></td>
+                    </tr></tbody>
+                </table>
+                <div class="action-container">
+                    <button class="btn-submit" id="btn-save-out" style="background:#c0392b" onclick="saveData('keluar')"><i class="fa-solid fa-save"></i> Simpan Data</button>
+                    <div class="filter-box">
+                        <label><strong>Filter Periode:</strong></label>
+                        <select id="filter-keluar" onchange="resetPage('keluar')"><option value="all">Semua Data</option></select>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="table-keluar">
+                        <thead id="thead-keluar"></thead>
+                        <tbody id="tbody-keluar"></tbody>
+                    </table>
+                </div>
+                <div class="pagination-container" id="pagination-keluar"></div>
+            </div>
+
+            <!-- PAGE TOTAL PERBULAN -->
+            <div id="page-total" class="page-content">
+                <h3>Input Karyawan (Bulan)</h3>
+                <div class="form-total">
+                    <div>
+                        <label>Pilih Bulan/Tahun</label>
+                        <input type="month" id="total-month">
+                    </div>
+                    <div>
+                        <label>Total Karyawan</label>
+                        <input type="number" id="total-count" placeholder="0">
+                    </div>
+                    <button class="btn-submit" onclick="saveTotalManual()" id="btn-save-total">Simpan Total</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr style="background:#2c3e50; color:white">
+                                <th>Bulan / Tahun</th>
+                                <th>Total Karyawan</th>
+                                <th style="width:120px">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-total"></tbody>
+                    </table>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title"><i class="fa-solid fa-chart-line" style="color: #3498db;"></i> Grafik Tren Total Karyawan</div>
+                    <canvas id="totalChart" height="100"></canvas>
+                </div>
+            </div>
+
+            <button class="btn-excel" onclick="exportExcel()" id="btn-export-main"><i class="fa-solid fa-file-excel"></i> Download Excel</button>
+        </main>
+    </div>
+
+    <!-- TULISAN BERJALAN -->
+    <div class="footer-marquee">
+        <marquee behavior="scroll" direction="left" scrollamount="6" style="font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+            Pastikan Anda Selalu Mengupdate Data Karyawan Secara Berkala untuk Keakuratan Laporan PT Indexim Coalindo
+        </marquee>
+    </div>
+
+    <script>
+        const departments = ["ADMINISTRATION & COMMERCIAL", "BUILDING & LV MAINTENANCE", "CENTRAL BLOCK", "COAL CHAIN MANAGEMENT", "COAL LABORATORY", "COMPLIANCE AND CONTROL", "CSR", "ENVIRONMENTAL", "EXPLORATION", "FINANCE, ACCOUNTING & IT", "FIXED PLANT", "GEOTECHNICAL, HYDROLOGY & PIT PROJECT DEVELOPMENT", "HUMAN CAPITAL & GENERAL SERVICES", "JO ZONE 1", "LEGAL & LICENSING", "MINE ENGINEERING", "MINE PRODUCTION", "MINING SURVEYOR", "NB & JO ENGINEERING", "OHSE", "OPERATION", "OPERATION - SITE", "PROCUREMENT & LOGISTIC", "PROJECT", "QHSE", "SECURITY", "SHIPPING & PORT", "SOUTH BLOCK & JO", "SYSTEM INTEGRATIONS"];
+        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        let dbMasuk = JSON.parse(localStorage.getItem('idx_masuk')) || [];
+        let dbKeluar = JSON.parse(localStorage.getItem('idx_keluar')) || [];
+        let dbTotal = JSON.parse(localStorage.getItem('idx_total_manual')) || [];
+        
+        let editIdx = -1;
+        let editTotalIdx = -1;
+        let curPageMasuk = 1;
+        let curPageKeluar = 1;
+        const rowsPerP = 10;
+        let myChart = null;
+
+        function formatDateDisplay(dateStr) {
+            if(!dateStr) return "";
+            const [y, m, d] = dateStr.split('-');
+            return `${d}-${m}-${y}`;
+        }
+
+        window.onload = () => {
+            initSelectors();
+            renderTable('masuk');
+            renderTable('keluar');
+            renderTotalTable();
+            setInterval(updateClock, 1000);
+        };
+
+        function initSelectors() {
+            document.querySelectorAll('.dept-list').forEach(s => s.innerHTML = '<option value="">-- Pilih Dept --</option>' + departments.map(d => `<option>${d}</option>`).join(''));
+            document.querySelectorAll('.staff-list').forEach(s => s.innerHTML = '<option value="">-- Status --</option><option>Staff</option><option>Non Staff</option>');
+        }
+
+        function switchPage(page) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar ul li a').forEach(a => a.classList.remove('active'));
+            document.getElementById('page-'+page).classList.add('active');
+            document.getElementById('nav-'+page).classList.add('active');
+            document.getElementById('main-title').innerText = page === 'total' ? 'TOTAL KARYAWAN PERBULAN' : 'REKAPITULASI KARYAWAN ' + page.toUpperCase();
+            if(page === 'total') renderTotalTable();
+        }
+
+        function resetPage(type) {
+            if(type === 'masuk') curPageMasuk = 1; else curPageKeluar = 1;
+            renderTable(type);
+        }
+
+        function saveData(type) {
+            const prefix = type === 'masuk' ? 'in' : 'out';
+            const fields = ['code', 'name', 'date', 'desig', 'dept', 'staff', 'note'];
+            const vals = fields.map(f => document.getElementById(`${prefix}-${f}`).value);
+            if (!vals[0] || !vals[1] || !vals[2]) return alert("Lengkapi data!");
+
+            let db = type === 'masuk' ? dbMasuk : dbKeluar;
+            if (editIdx === -1) db.push(vals);
+            else { db[editIdx] = vals; editIdx = -1; document.getElementById(`btn-save-${prefix}`).innerHTML = '<i class="fa-solid fa-save"></i> Simpan Data'; }
+
+            localStorage.setItem(type === 'masuk' ? 'idx_masuk' : 'idx_keluar', JSON.stringify(db));
+            fields.forEach(f => document.getElementById(`${prefix}-${f}`).value = "");
+            renderTable(type);
+        }
+
+        function renderTable(type) {
+            const db = type === 'masuk' ? dbMasuk : dbKeluar;
+            const filter = document.getElementById(`filter-${type}`).value;
+            const tbody = document.getElementById(`tbody-${type}`);
+            const thead = document.getElementById(`thead-${type}`);
+            let curPage = type === 'masuk' ? curPageMasuk : curPageKeluar;
+
+            thead.innerHTML = `<tr style="background:#2c3e50; color:white"><th>Code</th><th>Nama</th><th>Tanggal</th><th>Jabatan</th><th>Dept</th><th>Status</th><th>Ket</th><th>Aksi</th></tr>`;
+            
+            let filtered = db.map((item, index) => ({ item, index }));
+            if (filter !== "all") filtered = filtered.filter(obj => obj.item[2].startsWith(filter));
+
+            const totalRows = filtered.length;
+            const totalP = Math.ceil(totalRows / rowsPerP);
+            const start = (curPage - 1) * rowsPerP;
+            const paginated = filtered.slice(start, start + rowsPerP);
+
+            tbody.innerHTML = "";
+            paginated.forEach(obj => {
+                const tr = tbody.insertRow();
+                obj.item.forEach((c, idx) => {
+                    const cell = tr.insertCell();
+                    cell.innerText = (idx === 2) ? formatDateDisplay(c) : c;
+                });
+                tr.insertCell().innerHTML = `
+                    <button class="btn-edit" onclick="editRow('${type}', ${obj.index})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-delete" onclick="deleteRow('${type}', ${obj.index})"><i class="fa-solid fa-trash"></i></button>`;
+            });
+
+            renderPagination(type, totalP, curPage, totalRows);
+            updateFilters(type);
+        }
+
+        function renderPagination(type, totalP, current, totalRows) {
+            const container = document.getElementById(`pagination-${type}`);
+            if (totalRows === 0) { container.innerHTML = ""; return; }
+            const startIdx = (current - 1) * rowsPerP + 1;
+            const endIdx = Math.min(current * rowsPerP, totalRows);
+
+            container.innerHTML = `
+                <div class="pagination-info">Menampilkan ${startIdx} sampai ${endIdx} dari ${totalRows} data</div>
+                <div class="pagination-buttons">
+                    <button class="btn-page" ${current === 1 ? 'disabled' : ''} onclick="changePage('${type}', ${current - 1})">Previous</button>
+                    <button class="btn-page" ${current === totalP || totalP === 0 ? 'disabled' : ''} onclick="changePage('${type}', ${current + 1})">Next</button>
+                </div>`;
+        }
+
+        function changePage(type, page) {
+            if(type === 'masuk') curPageMasuk = page; else curPageKeluar = page;
+            renderTable(type);
+        }
+
+        function editRow(type, idx) {
+            editIdx = idx;
+            const db = type === 'masuk' ? dbMasuk : dbKeluar;
+            const prefix = type === 'masuk' ? 'in' : 'out';
+            const fields = ['code', 'name', 'date', 'desig', 'dept', 'staff', 'note'];
+            fields.forEach((f, i) => document.getElementById(`${prefix}-${f}`).value = db[idx][i]);
+            document.getElementById(`btn-save-${prefix}`).innerHTML = '<i class="fa-solid fa-rotate"></i> Update Data';
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function deleteRow(type, idx) {
+            if (!confirm("Hapus data ini?")) return;
+            let db = type === 'masuk' ? dbMasuk : dbKeluar;
+            db.splice(idx, 1);
+            localStorage.setItem(type === 'masuk' ? 'idx_masuk' : 'idx_keluar', JSON.stringify(db));
+            renderTable(type);
+        }
+
+        function updateFilters(type) {
+            const db = type === 'masuk' ? dbMasuk : dbKeluar;
+            const drop = document.getElementById(`filter-${type}`);
+            const current = drop.value;
+            const periods = [...new Set(db.map(r => r[2].substring(0, 7)))].sort().reverse();
+            let html = '<option value="all">Semua Data</option>';
+            periods.forEach(p => {
+                const [y, m] = p.split('-');
+                html += `<option value="${p}">${monthNames[parseInt(m)-1]} ${y}</option>`;
+            });
+            drop.innerHTML = html; drop.value = current;
+        }
+
+        function saveTotalManual() {
+            const m = document.getElementById('total-month').value;
+            const c = document.getElementById('total-count').value;
+            if(!m || !c) return alert("Isi data!");
+            if(editTotalIdx === -1) dbTotal.push({ month: m, count: c });
+            else { dbTotal[editTotalIdx] = { month: m, count: c }; editTotalIdx = -1; document.getElementById('btn-save-total').innerText = "Simpan Total"; }
+            localStorage.setItem('idx_total_manual', JSON.stringify(dbTotal));
+            document.getElementById('total-month').value = ""; document.getElementById('total-count').value = "";
+            renderTotalTable();
+        }
+
+        function renderTotalTable() {
+            const tbody = document.getElementById('tbody-total');
+            tbody.innerHTML = "";
+            dbTotal.sort((a, b) => a.month.localeCompare(b.month));
+            dbTotal.forEach((data, index) => {
+                const [y, m] = data.month.split('-');
+                const tr = tbody.insertRow();
+                tr.innerHTML = `<td>${monthNames[parseInt(m)-1]} ${y}</td><td>${data.count} Karyawan</td>
+                    <td><button class="btn-edit" onclick="editTotal(${index})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-delete" onclick="deleteTotal(${index})"><i class="fa-solid fa-trash"></i></button></td>`;
+            });
+            updateChart();
+        }
+
+        /* --- KODE GRAFIK ASLI (DIPERBAIKI) --- */
+        function updateChart() {
+            const ctx = document.getElementById('totalChart').getContext('2d');
+            const labels = dbTotal.map(d => {
+                const [y, m] = d.month.split('-');
+                return `${monthNames[parseInt(m)-1]} ${y}`;
+            });
+            const dataValues = dbTotal.map(d => d.count);
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Karyawan',
+                        data: dataValues,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#3498db',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,           // Menampilkan titik kembali
+                        pointHoverRadius: 8,      // Ukuran titik saat diarahkan kursor
+                        tension: 0.4,             // Membuat garis melengkung halus (Smooth)
+                        fill: true
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function editTotal(idx) {
+            editTotalIdx = idx;
+            document.getElementById('total-month').value = dbTotal[idx].month;
+            document.getElementById('total-count').value = dbTotal[idx].count;
+            document.getElementById('btn-save-total').innerText = "Update Total";
+        }
+
+        function deleteTotal(idx) {
+            if(confirm("Hapus?")) { dbTotal.splice(idx, 1); localStorage.setItem('idx_total_manual', JSON.stringify(dbTotal)); renderTotalTable(); }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock-time').innerText = now.toLocaleTimeString('id-ID');
+            document.getElementById('clock-date').innerText = now.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'short', year:'numeric'});
+        }
+
+        function exportExcel() {
+            let data = [];
+            if(document.getElementById('page-total').classList.contains('active')) {
+                data = dbTotal.map(d => {
+                    const [y, m] = d.month.split('-');
+                    return [`${monthNames[parseInt(m)-1]} ${y}`, d.count];
+                });
+                data.unshift(["Bulan / Tahun", "Total Karyawan"]);
+            } else {
+                const active = document.getElementById('page-masuk').classList.contains('active') ? 'masuk' : 'keluar';
+                let rawData = [...(active === 'masuk' ? dbMasuk : dbKeluar)];
+                data = rawData.map(row => {
+                    let newRow = [...row];
+                    newRow[2] = formatDateDisplay(newRow[2]);
+                    return newRow;
+                });
+                data.unshift(["Code", "Nama", "Tanggal", "Jabatan", "Dept", "Status", "Ket"]);
+            }
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            XLSX.writeFile(wb, "Data_Rekap.xlsx");
+        }
+    </script>
+</body>
+</html>
